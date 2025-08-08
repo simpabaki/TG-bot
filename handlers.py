@@ -1,4 +1,5 @@
 from aiogram import Router, F, types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from config import SHEET_NAME
@@ -10,8 +11,22 @@ router = Router()
 @router.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
+    # Показываем приветствие и обычную кнопку «Начало»
     await message.answer(
         config['welcome_text'],
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[types.KeyboardButton(text="Начало")]],
+            resize_keyboard=True
+        )
+    )
+    # Состояние не ставим — начнём после нажатия «Начало»
+
+@router.message(F.text == "Начало")
+async def begin(message: types.Message, state: FSMContext):
+    config = get_config(SHEET_NAME)
+    # После «Начало» просим согласие и показываем кнопку «✅ Согласен»
+    await message.answer(
+        config['consent_text'],
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
             resize_keyboard=True
@@ -22,7 +37,10 @@ async def start(message: types.Message, state: FSMContext):
 @router.message(Form.consent, F.text == "✅ Согласен")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
-    await message.answer(config['ask_full_name'])
+    await message.answer(
+        config['ask_full_name'],
+        reply_markup=types.ReplyKeyboardRemove()
+    )
     await state.set_state(Form.full_name)
 
 @router.message(Form.full_name)
