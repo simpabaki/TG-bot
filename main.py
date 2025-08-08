@@ -45,7 +45,7 @@ async def start_bot():
 
     await dp.start_polling(bot)
 
-if name == "main":
+if __name__ == "__main__":
     import threading
     from server import start_api_server
     threading.Thread(target=start_api_server).start()
