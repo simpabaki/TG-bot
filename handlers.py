@@ -154,6 +154,6 @@ async def reject_cb(callback: types.CallbackQuery):
                 pass
         await callback.answer("Отклонено")
 
-@router.callback_query(F.data == "processed"))
+@router.callback_query(F.data == "processed")
 async def processed_cb(callback: types.CallbackQuery):
     await callback.answer("Уже обработано")
