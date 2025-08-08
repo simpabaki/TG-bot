@@ -1,13 +1,15 @@
-from aiogram import Router, F, types
-from aiogram.filters import CommandStart
-from aiogram.fsm.context import FSMContext
-from config import SHEET_NAME
-from states import Form
-from gsheet import get_config, save_user_data
+@router.message(F.text == "🚀 Начать")
+async def show_consent(message: types.Message, state: FSMContext):
+    config = get_config(SHEET_NAME)
+    await message.answer(
+        config['welcome_text'],
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
+            resize_keyboard=True
+        )
+    )
+    await state.set_state(Form.consent)
 
-router = Router()
-
-@router.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
     await message.answer(
@@ -22,7 +24,7 @@ async def start(message: types.Message, state: FSMContext):
 @router.message(Form.consent, F.text == "✅ Согласен")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
-    await message.answer(config['ask_full_name'])
+    await message.answer(config['ask_full_name'], reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(Form.full_name)
 
 @router.message(Form.full_name)
@@ -41,9 +43,6 @@ async def get_phone(message: types.Message, state: FSMContext):
 
 @router.message(Form.waiting_for_screenshot, F.photo)
 async def get_screenshot(message: types.Message, state: FSMContext):
-    @router.message(Form.waiting_for_screenshot)
-    async def invalid_screenshot_input(message: types.Message):
-        await message.answer("❗ Это не изображение.\nПожалуйста, отправьте скриншот отзыва в виде картинки 📷.")
     user_data = await state.get_data()
     photo_id = message.photo[-1].file_id
     username = message.from_user.username or "не указан"
@@ -66,9 +65,6 @@ async def get_screenshot(message: types.Message, state: FSMContext):
             types.InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_{message.from_user.id}")
         ]
     ])
-
-    await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
-    await message.answer(config['wait_review_text'])
 
     await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
     await message.answer(config['wait_review_text'])
