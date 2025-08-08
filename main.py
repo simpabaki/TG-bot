@@ -29,11 +29,7 @@ async def start_bot():
 
     await dp.start_polling(bot)
 
-await callback.message.edit_reply_markup(
-    reply_markup=types.InlineKeyboardMarkup(
-        inline_keyboard=[[types.InlineKeyboardButton(text="✅ Обработано", callback_data="noop")]]
-    )
-)
+
 
 if __name__ == "__main__":
     import threading
