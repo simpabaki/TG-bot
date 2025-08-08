@@ -97,7 +97,7 @@ async def not_a_screenshot(message: types.Message):
 
 # ===== Админские колбэки =====
 
-# Клавиатура "Обработано" (одна неактивная кнопка)
+# Клавиатура "Обработано"
 processed_kb = types.InlineKeyboardMarkup(inline_keyboard=[
     [types.InlineKeyboardButton(text="Обработано", callback_data="processed")]
 ])
@@ -107,39 +107,53 @@ async def approve_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # Сообщаем пользователю об одобрении
-    await callback.bot.send_message(
-        chat_id=user_id,
-        text=f"{config['approve_text']}\n{config.get('mini_course_link','')}"
-    )
-
-    # Меняем кнопки у админа на "Обработано"
+    # Пытаемся уведомить пользователя, но не блокируем обновление у админа
     try:
-        await callback.message.edit_reply_markup(reply_markup=processed_kb)
+        await callback.bot.send_message(
+            chat_id=user_id,
+            text=f"{config['approve_text']}\n{config.get('mini_course_link','')}"
+        )
     except Exception:
-        # если медиасообщение упирается в ограничения — продублируем через edit_caption
-        caption = callback.message.caption or ""
-        await callback.message.edit_caption(caption=caption, reply_markup=processed_kb)
-
-    await callback.answer("Одобрено")
+        pass
+    finally:
+        # Меняем кнопки у админа на "Обработано" при любом исходе
+        try:
+            await callback.message.edit_reply_markup(reply_markup=processed_kb)
+        except Exception:
+            # запасной вариант для медиа-сообщений
+            try:
+                await callback.message.edit_caption(
+                    caption=callback.message.caption or "",
+                    reply_markup=processed_kb
+                )
+            except Exception:
+                pass
+        await callback.answer("Одобрено")
 
 @router.callback_query(F.data.startswith("reject_"))
 async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # Сообщаем пользователю об отказе
-    await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
-
-    # Меняем кнопки у админа на "Обработано"
+    # Пытаемся уведомить пользователя, но не блокируем обновление у админа
     try:
-        await callback.message.edit_reply_markup(reply_markup=processed_kb)
+        await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
     except Exception:
-        caption = callback.message.caption or ""
-        await callback.message.edit_caption(caption=caption, reply_markup=processed_kb)
+        pass
+    finally:
+        # Меняем кнопки у админа на "Обработано" при любом исходе
+        try:
+            await callback.message.edit_reply_markup(reply_markup=processed_kb)
+        except Exception:
+            try:
+                await callback.message.edit_caption(
+                    caption=callback.message.caption or "",
+                    reply_markup=processed_kb
+                )
+            except Exception:
+                pass
+        await callback.answer("Отклонено")
 
-    await callback.answer("Отклонено")
-
-@router.callback_query(F.data == "processed")
+@router.callback_query(F.data == "processed"))
 async def processed_cb(callback: types.CallbackQuery):
     await callback.answer("Уже обработано")
