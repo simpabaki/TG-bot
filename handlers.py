@@ -1,3 +1,24 @@
+from aiogram import Router, F, types
+from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
+from config import SHEET_NAME
+from states import Form
+from gsheet import get_config, save_user_data
+
+router = Router()
+
+
+@router.message(CommandStart())
+async def start(message: types.Message, state: FSMContext):
+    await message.answer(
+        "Добро пожаловать! Нажмите кнопку ниже, чтобы начать.",
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[types.KeyboardButton(text="🚀 Начать")]],
+            resize_keyboard=True
+        )
+    )
+    await state.clear()
+
 @router.message(F.text == "🚀 Начать")
 async def show_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
@@ -68,3 +89,8 @@ async def get_screenshot(message: types.Message, state: FSMContext):
 
     await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
     await message.answer(config['wait_review_text'])
+
+# NOT A PHOTO HANDLER
+@router.message(lambda message: message.content_type != "photo")
+async def not_photo_warning(message: types.Message, state: FSMContext):
+    await message.answer("Пожалуйста, отправьте скриншот отзыва в виде фотографии 📸")
