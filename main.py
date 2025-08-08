@@ -14,7 +14,7 @@ async def start_bot():
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
 
-    @dp.callback_query()
+@dp.callback_query()
 async def handle_callback(callback: types.CallbackQuery):
     action, user_id = callback.data.split("_")
     user_id = int(user_id)
