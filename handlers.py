@@ -23,7 +23,10 @@ async def start(message: types.Message, state: FSMContext):
 @router.message(Form.consent, F.text == "✅ Согласен")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
-    await message.answer(config['ask_full_name'])
+    await message.answer(
+        config['ask_full_name'],
+        reply_markup=types.ReplyKeyboardRemove()
+    )
     await state.set_state(Form.full_name)
 
 @router.message(Form.full_name)
