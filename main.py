@@ -1,10 +1,9 @@
-import asyncio
+import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import SHEET_NAME
-from handlers import router
 from gsheet import get_config
-from server import start_api_server
+from handlers import router
 
 async def start_bot():
     config = get_config(SHEET_NAME)
@@ -20,17 +19,18 @@ async def start_bot():
         user_id = int(user_id)
 
         if action == "approve":
-            await bot.send_message(chat_id=user_id, text=f"{config['approve_text']}\n{config['mini_course_link']}")
-            await callback.message.edit_reply_markup(  # заменяем кнопки
+            await bot.send_message(chat_id=user_id, text=f"{config['approve_text']}
+{config['mini_course_link']}")
+            await callback.message.edit_reply_markup(
                 reply_markup=types.InlineKeyboardMarkup(
                     inline_keyboard=[[types.InlineKeyboardButton("✅ Обработано", callback_data="noop")]]
                 )
             )
             await callback.answer("Ссылка отправлена")
-        
+
         elif action == "reject":
             await bot.send_message(chat_id=user_id, text=config['reject_text'])
-            await callback.message.edit_reply_markup(  # заменяем кнопки
+            await callback.message.edit_reply_markup(
                 reply_markup=types.InlineKeyboardMarkup(
                     inline_keyboard=[[types.InlineKeyboardButton("❌ Отказано", callback_data="noop")]]
                 )
@@ -38,10 +38,3 @@ async def start_bot():
             await callback.answer("Отказ отправлен")
 
     await dp.start_polling(bot)
-
-
-
-if __name__ == "__main__":
-    import threading
-    threading.Thread(target=start_api_server).start()
-    asyncio.run(start_bot())
