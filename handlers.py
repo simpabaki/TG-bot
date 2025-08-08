@@ -48,6 +48,13 @@ async def get_screenshot(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
     admin_id = int(config['admin_id'])
 
+@router.message(Form.waiting_for_screenshot, ~F.photo)
+async def not_a_screenshot(message: types.Message):
+    config = get_config(SHEET_NAME)
+    await message.answer(
+        config.get('not_screenshot_text', "это не скрин, пришлите скрин с отзывом")
+    )
+
     save_user_data(SHEET_NAME, message.from_user.id, username, user_data['full_name'], user_data['phone'], "pending")
 
     caption = (
