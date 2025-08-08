@@ -5,6 +5,8 @@ from aiogram.fsm.context import FSMContext
 from config import SHEET_NAME
 from states import Form
 from gsheet import get_config, save_user_data, update_user_status
+from aiogram import Dispatcher
+from aiogram.fsm.storage.base import StorageKey
 
 router = Router()
 
@@ -160,20 +162,26 @@ async def reject_cb(callback: types.CallbackQuery):
     except Exception:
         pass
 
-    # 3) меняем кнопки у админа на "Обработано"
+    # 2) Переводим пользователя снова на шаг "пришлите скрин" и просим фото
+    dp = Dispatcher.get_current()
+    ctx = FSMContext(
+        storage=dp.storage,
+        key=StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
+    )
+    await ctx.set_state(Form.waiting_for_screenshot)
+    await callback.bot.send_message(chat_id=user_id, text=config['ask_screenshot'])
+
+    # 3) Меняем кнопки у админа на «Обработано» (как и раньше)
+    processed_kb = types.InlineKeyboardMarkup(
+        inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
+    )
     try:
-        await callback.message.edit_reply_markup(
-            reply_markup=types.InlineKeyboardMarkup(
-                inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
-            )
-        )
+        await callback.message.edit_reply_markup(reply_markup=processed_kb)
     except Exception:
         try:
             await callback.message.edit_caption(
                 caption=callback.message.caption or "",
-                reply_markup=types.InlineKeyboardMarkup(
-                    inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
-                )
+                reply_markup=processed_kb
             )
         except Exception:
             pass
