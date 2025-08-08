@@ -160,23 +160,35 @@ async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # 1) Переводим пользователя на шаг «жду скрин»
+    # 1) Сбрасываем/выставляем состояние пользователю на шаг согласия
     dp = Dispatcher.get_current()
-    ctx = FSMContext(
-        storage=dp.storage,
-        key=StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
-    )
-    await ctx.set_state(Form.waiting_for_screenshot)
+    key = StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
+    await dp.storage.set_data(key, {})                 # очистим данные шага
+    await dp.storage.set_state(key, Form.consent)      # «начало» вашего сценария
 
-    # 2) Шлём одно объединённое сообщение (меньше шансов, что одно из двух "не дойдёт")
-    text = f"{config['reject_text']}\n{config['ask_screenshot']}"
     try:
-        await callback.bot.send_message(chat_id=user_id, text=text)
-    except Exception as e:
-        # В логах будет видно, если user заблокировал бота и т.п.
-        print("reject_cb send_message error:", e)
+        update_user_status(SHEET_NAME, user_id, "отказано")
+    except Exception:
+        pass
+    # 2) Сообщаем об отказе и сразу показываем стартовый экран, как в /start
+    try:
+        await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
+    except Exception:
+        pass
 
-    # 3) Ставим у админа «Обработано»
+    try:
+        await callback.bot.send_message(
+            chat_id=user_id,
+            text=config['welcome_text'],
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
+                resize_keyboard=True
+            )
+        )
+    except Exception:
+        pass
+
+    # 3) Меняем кнопки у админа на «Обработано»
     processed_kb = types.InlineKeyboardMarkup(
         inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
     )
@@ -186,7 +198,7 @@ async def reject_cb(callback: types.CallbackQuery):
             message_id=callback.message.message_id,
             reply_markup=processed_kb
         )
-    except Exception as e:
-        print("reject_cb edit_message_reply_markup error:", e)
+    except Exception:
+        pass
 
     await callback.answer("Отклонено")
