@@ -160,34 +160,33 @@ async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # 1) Пишем пользователю "отклонено"
-    try:
-        await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
-    except Exception:
-        pass
+    # 1) Переводим пользователя на шаг «жду скрин»
+    dp = Dispatcher.get_current()
+    ctx = FSMContext(
+        storage=dp.storage,
+        key=StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
+    )
+    await ctx.set_state(Form.waiting_for_screenshot)
 
-    # 2) Переводим пользователя на шаг "пришлите скрин" + сразу просим новое фото
+    # 2) Шлём одно объединённое сообщение (меньше шансов, что одно из двух "не дойдёт")
+    text = f"{config['reject_text']}\n{config['ask_screenshot']}"
     try:
-        dp = Dispatcher.get_current()
-        key = StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
-        await dp.storage.set_state(key, Form.waiting_for_screenshot)
-        await callback.bot.send_message(chat_id=user_id, text=config['ask_screenshot'])
-    except Exception:
-        pass
+        await callback.bot.send_message(chat_id=user_id, text=text)
+    except Exception as e:
+        # В логах будет видно, если user заблокировал бота и т.п.
+        print("reject_cb send_message error:", e)
 
-    # 3) Всегда меняем клавиатуру у админа
+    # 3) Ставим у админа «Обработано»
+    processed_kb = types.InlineKeyboardMarkup(
+        inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
+    )
     try:
         await callback.bot.edit_message_reply_markup(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
             reply_markup=processed_kb
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print("reject_cb edit_message_reply_markup error:", e)
 
     await callback.answer("Отклонено")
-
-
-@router.callback_query(F.data == "processed")
-async def processed_cb(callback: types.CallbackQuery):
-    await callback.answer("Уже обработано")
