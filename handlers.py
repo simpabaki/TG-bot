@@ -43,6 +43,7 @@ async def get_phone(message: types.Message, state: FSMContext):
     await message.answer(config['ask_screenshot'])
     await state.set_state(Form.waiting_for_screenshot)
 
+# --- ПРИШЛО ФОТО (нормальный путь)
 @router.message(Form.waiting_for_screenshot, F.photo)
 async def get_screenshot(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
@@ -51,17 +52,18 @@ async def get_screenshot(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
     admin_id = int(config['admin_id'])
 
-@router.message(Form.waiting_for_screenshot, ~F.photo)
-async def not_a_screenshot(message: types.Message):
-    config = get_config(SHEET_NAME)
-    await message.answer(
-        config.get('not_screenshot_text', "это не скрин, пришлите скрин с отзывом")
+    # Сохраняем в таблицу
+    save_user_data(
+        SHEET_NAME,
+        message.from_user.id,
+        username,
+        user_data['full_name'],
+        user_data['phone'],
+        "pending"
     )
 
-    save_user_data(SHEET_NAME, message.from_user.id, username, user_data['full_name'], user_data['phone'], "pending")
-
     caption = (
-        f"Скрин на проверку\n"
+        "Скрин на проверку\n"
         f"ФИО: {user_data['full_name']}\n"
         f"Тел: {user_data['phone']}\n"
         f"Ник: @{username}\n"
@@ -75,18 +77,69 @@ async def not_a_screenshot(message: types.Message):
         ]
     ])
 
-    await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
-    await message.answer(config['wait_review_text'])
-
+    # Пытаемся отправить админу, при ошибке всё равно отвечаем пользователю
     try:
-        # пробуем отправить админу
         await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
-    except Exception as e:
-        # не получилось (например, админ не писал боту). Сообщим юзеру и не упадём.
+    except Exception:
         await message.answer("⚠️ Не удалось отправить скрин администратору. Попробуйте позже.")
     else:
-        # всё ок — говорим пользователю, что ушло на проверку
         await message.answer(config['wait_review_text'])
     finally:
-        # очищаем состояние, чтобы пользователь не завис в ожидании скрина
         await state.clear()
+
+# --- ПРИШЛО НЕ ФОТО (подсказка и остаёмся в этом же состоянии)
+@router.message(Form.waiting_for_screenshot, ~F.photo)
+async def not_a_screenshot(message: types.Message):
+    config = get_config(SHEET_NAME)
+    await message.answer(
+        config.get('not_screenshot_text', "это не скрин, пришлите скрин с отзывом")
+    )
+
+# ===== Админские колбэки =====
+
+# Клавиатура "Обработано" (одна неактивная кнопка)
+processed_kb = types.InlineKeyboardMarkup(inline_keyboard=[
+    [types.InlineKeyboardButton(text="Обработано", callback_data="processed")]
+])
+
+@router.callback_query(F.data.startswith("approve_"))
+async def approve_cb(callback: types.CallbackQuery):
+    config = get_config(SHEET_NAME)
+    user_id = int(callback.data.split("_", 1)[1])
+
+    # Сообщаем пользователю об одобрении
+    await callback.bot.send_message(
+        chat_id=user_id,
+        text=f"{config['approve_text']}\n{config.get('mini_course_link','')}"
+    )
+
+    # Меняем кнопки у админа на "Обработано"
+    try:
+        await callback.message.edit_reply_markup(reply_markup=processed_kb)
+    except Exception:
+        # если медиасообщение упирается в ограничения — продублируем через edit_caption
+        caption = callback.message.caption or ""
+        await callback.message.edit_caption(caption=caption, reply_markup=processed_kb)
+
+    await callback.answer("Одобрено")
+
+@router.callback_query(F.data.startswith("reject_"))
+async def reject_cb(callback: types.CallbackQuery):
+    config = get_config(SHEET_NAME)
+    user_id = int(callback.data.split("_", 1)[1])
+
+    # Сообщаем пользователю об отказе
+    await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
+
+    # Меняем кнопки у админа на "Обработано"
+    try:
+        await callback.message.edit_reply_markup(reply_markup=processed_kb)
+    except Exception:
+        caption = callback.message.caption or ""
+        await callback.message.edit_caption(caption=caption, reply_markup=processed_kb)
+
+    await callback.answer("Отклонено")
+
+@router.callback_query(F.data == "processed")
+async def processed_cb(callback: types.CallbackQuery):
+    await callback.answer("Уже обработано")
