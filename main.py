@@ -39,6 +39,4 @@ async def start_bot():
     await dp.start_polling(bot)
 import asyncio
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=start_api_server).start()
     asyncio.run(start_bot())
