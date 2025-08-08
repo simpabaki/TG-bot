@@ -74,3 +74,16 @@ async def not_a_screenshot(message: types.Message):
 
     await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
     await message.answer(config['wait_review_text'])
+
+    try:
+        # пробуем отправить админу
+        await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
+    except Exception as e:
+        # не получилось (например, админ не писал боту). Сообщим юзеру и не упадём.
+        await message.answer("⚠️ Не удалось отправить скрин администратору. Попробуйте позже.")
+    else:
+        # всё ок — говорим пользователю, что ушло на проверку
+        await message.answer(config['wait_review_text'])
+    finally:
+        # очищаем состояние, чтобы пользователь не завис в ожидании скрина
+        await state.clear()
