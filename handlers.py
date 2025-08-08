@@ -1,7 +1,7 @@
 from aiogram import Router, F, types
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from config import ADMIN_ID, SHEET_NAME
+from config import SHEET_NAME
 from states import Form
 from gsheet import get_config, save_user_data
 
@@ -45,6 +45,7 @@ async def get_screenshot(message: types.Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     username = message.from_user.username or "не указан"
     config = get_config(SHEET_NAME)
+    admin_id = int(config['admin_id'])
 
     save_user_data(SHEET_NAME, message.from_user.id, username, user_data['full_name'], user_data['phone'], "pending")
 
@@ -63,5 +64,5 @@ async def get_screenshot(message: types.Message, state: FSMContext):
         ]
     ])
 
-    await message.bot.send_photo(chat_id=ADMIN_ID, photo=photo_id, caption=caption, reply_markup=buttons)
+    await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
     await message.answer(config['wait_review_text'])
