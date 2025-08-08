@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from config import SHEET_NAME
 from states import Form
-from gsheet import get_config, save_user_data
+from gsheet import get_config, save_user_data, update_user_status
 
 router = Router()
 
@@ -107,7 +107,7 @@ async def approve_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # Пытаемся уведомить пользователя, но не блокируем обновление у админа
+    # 1) уведомляем пользователя (не критично, если упадёт)
     try:
         await callback.bot.send_message(
             chat_id=user_id,
@@ -115,55 +115,67 @@ async def approve_cb(callback: types.CallbackQuery):
         )
     except Exception:
         pass
-    finally:
-        # Меняем кнопки у админа на "Обработано" при любом исходе
+
+    # 2) обновляем статус в таблице
+    try:
+        update_user_status(SHEET_NAME, user_id, "одобрено")
+    except Exception:
+        pass
+
+    # 3) меняем кнопки у админа на "Обработано"
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
+            )
+        )
+    except Exception:
         try:
-            await callback.message.edit_reply_markup(reply_markup=processed_kb)
-        except Exception:
-            # запасной вариант для медиа-сообщений
-            try:
-                await callback.message.edit_caption(
-                    caption=callback.message.caption or "",
-                    reply_markup=processed_kb
+            await callback.message.edit_caption(
+                caption=callback.message.caption or "",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
                 )
-            except Exception:
-                pass
-        await callback.answer("Одобрено")
+            )
+        except Exception:
+            pass
+
+    await callback.answer("Одобрено")
+
 
 @router.callback_query(F.data.startswith("reject_"))
 async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # Пытаемся уведомить пользователя, но не блокируем обновление у админа
+    # 1) уведомляем пользователя
     try:
-        # Сообщаем пользователю об отказе
         await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
-    # "Перезапуск" сценария — отправляем приветствие и кнопку, как в /start
-        await callback.bot.send_message(
-            chat_id=user_id,
-            text=config['welcome_text'],
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
-                resize_keyboard=True
+    except Exception:
+        pass
+
+    # 2) обновляем статус в таблице
+    try:
+        update_user_status(SHEET_NAME, user_id, "отклонено")
+    except Exception:
+        pass
+
+    # 3) меняем кнопки у админа на "Обработано"
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
             )
         )
     except Exception:
-        pass
-    finally:
-        # Меняем кнопки у админа на "Обработано" при любом исходе
         try:
-            await callback.message.edit_reply_markup(reply_markup=processed_kb)
-        except Exception:
-            try:
-                await callback.message.edit_caption(
-                    caption=callback.message.caption or "",
-                    reply_markup=processed_kb
+            await callback.message.edit_caption(
+                caption=callback.message.caption or "",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
                 )
-            except Exception:
-                pass
-        await callback.answer("Отклонено")
+            )
+        except Exception:
+            pass
 
-@router.callback_query(F.data == "processed")
-async def processed_cb(callback: types.CallbackQuery):
-    await callback.answer("Уже обработано")
+    await callback.answer("Отклонено")
