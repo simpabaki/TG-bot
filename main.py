@@ -1,0 +1,34 @@
+import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.fsm.storage.memory import MemoryStorage
+from config import SHEET_NAME
+from handlers import router
+from gsheet import get_config
+
+async def main():
+    config = get_config(SHEET_NAME)
+    TOKEN = config['bot_token']
+    ADMIN_ID = int(config['admin_id'])
+
+    bot = Bot(token=TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
+    dp.include_router(router)
+
+    @dp.callback_query()
+    async def handle_callback(callback: types.CallbackQuery):
+        action, user_id = callback.data.split("_")
+        user_id = int(user_id)
+
+        if action == "approve":
+            await bot.send_message(chat_id=user_id, text=f"{config['approve_text']}\n{config['mini_course_link']}")
+            await callback.message.answer("Пользователь получил ссылку.")
+        elif action == "reject":
+            await bot.send_message(chat_id=user_id, text=config['reject_text'])
+            await callback.message.answer("Пользователь получил отказ.")
+
+        await callback.answer()
+
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
