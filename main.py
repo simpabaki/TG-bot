@@ -19,7 +19,9 @@ async def start_bot():
         user_id = int(user_id)
 
         if action == "approve":
-            await bot.send_message(chat_id=user_id, text=f"{config['approve_text']}\n{config['mini_course_link']}")
+            approve_text = str(config.get("approve_text", ""))
+            course_link = str(config.get("mini_course_link", ""))
+            await bot.send_message(chat_id=user_id, text=f"{approve_text}\n{course_link")
             await callback.message.edit_reply_markup(
                 reply_markup=types.InlineKeyboardMarkup(
                     inline_keyboard=[[types.InlineKeyboardButton("✅ Обработано", callback_data="noop")]]
@@ -28,7 +30,8 @@ async def start_bot():
             await callback.answer("Ссылка отправлена")
 
         elif action == "reject":
-            await bot.send_message(chat_id=user_id, text=config['reject_text'])
+            reject_text = str(config.get("reject_text", ""))
+            await bot.send_message(chat_id=user_id, text=reject_text)
             await callback.message.edit_reply_markup(
                 reply_markup=types.InlineKeyboardMarkup(
                     inline_keyboard=[[types.InlineKeyboardButton("❌ Отказано", callback_data="noop")]]
