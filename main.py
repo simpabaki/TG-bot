@@ -22,9 +22,9 @@ async def start_bot():
         if action == "approve":
             await bot.send_message(chat_id=user_id, text=f"{config['approve_text']}\n{config['mini_course_link']}")
             
-await callback.message.edit_reply_markup(
-    reply_markup=types.InlineKeyboardMarkup(
-        inline_keyboard=[[types.InlineKeyboardButton(text="✅ Обработано", callback_data="noop")]]
+    await callback.message.edit_reply_markup(
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[[types.InlineKeyboardButton(text="✅ Обработано", callback_data="noop")]]
     )
 )
 
