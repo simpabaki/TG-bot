@@ -11,22 +11,8 @@ router = Router()
 @router.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
-    # Показываем приветствие и обычную кнопку «Начало»
     await message.answer(
         config['welcome_text'],
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[types.KeyboardButton(text="Начало")]],
-            resize_keyboard=True
-        )
-    )
-    # Состояние не ставим — начнём после нажатия «Начало»
-
-@router.message(F.text == "Начало")
-async def begin(message: types.Message, state: FSMContext):
-    config = get_config(SHEET_NAME)
-    # После «Начало» просим согласие и показываем кнопку «✅ Согласен»
-    await message.answer(
-        config['consent_text'],
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
             resize_keyboard=True
@@ -37,10 +23,7 @@ async def begin(message: types.Message, state: FSMContext):
 @router.message(Form.consent, F.text == "✅ Согласен")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
-    await message.answer(
-        config['ask_full_name'],
-        reply_markup=types.ReplyKeyboardRemove()
-    )
+    await message.answer(config['ask_full_name'])
     await state.set_state(Form.full_name)
 
 @router.message(Form.full_name)
@@ -64,13 +47,6 @@ async def get_screenshot(message: types.Message, state: FSMContext):
     username = message.from_user.username or "не указан"
     config = get_config(SHEET_NAME)
     admin_id = int(config['admin_id'])
-
-@router.message(Form.waiting_for_screenshot, ~F.photo)
-async def not_a_screenshot(message: types.Message):
-    config = get_config(SHEET_NAME)
-    await message.answer(
-        config.get('not_screenshot_text', "это не скрин, пришлите скрин с отзывом")
-    )
 
     save_user_data(SHEET_NAME, message.from_user.id, username, user_data['full_name'], user_data['phone'], "pending")
 
