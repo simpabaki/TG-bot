@@ -162,16 +162,16 @@ async def reject_cb(callback: types.CallbackQuery):
     except Exception:
         pass
 
-    # 2) Переводим пользователя снова на шаг "пришлите скрин" и просим фото
+    # 2) Переводим пользователя на шаг «пришлите скрин» и сразу просим фото
     dp = Dispatcher.get_current()
-    ctx = FSMContext(
-        storage=dp.storage,
-        key=StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
-    )
-    await ctx.set_state(Form.waiting_for_screenshot)
-    await callback.bot.send_message(chat_id=user_id, text=config['ask_screenshot'])
+    key = StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
+    await dp.storage.set_state(key, Form.waiting_for_screenshot)
+    try:
+        await callback.bot.send_message(chat_id=user_id, text=config['ask_screenshot'])
+    except Exception:
+        pass
 
-    # 3) Меняем кнопки у админа на «Обработано» (как и раньше)
+    # 3) Меняем кнопки у админа на «Обработано»
     processed_kb = types.InlineKeyboardMarkup(
         inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
     )
