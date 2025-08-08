@@ -20,7 +20,7 @@ async def start(message: types.Message, state: FSMContext):
     )
     await state.set_state(Form.consent)
 
-@router.message(Form.consent, F.text == "✅ Согласен")
+@router.message(F.text == "✅ Согласен")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
     await message.answer(
@@ -137,7 +137,17 @@ async def reject_cb(callback: types.CallbackQuery):
 
     # Пытаемся уведомить пользователя, но не блокируем обновление у админа
     try:
+        # Сообщаем пользователю об отказе
         await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
+    # "Перезапуск" сценария — отправляем приветствие и кнопку, как в /start
+        await callback.bot.send_message(
+            chat_id=user_id,
+            text=config['welcome_text'],
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
+                resize_keyboard=True
+            )
+        )
     except Exception:
         pass
     finally:
