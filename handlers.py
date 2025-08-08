@@ -156,11 +156,7 @@ async def reject_cb(callback: types.CallbackQuery):
     except Exception:
         pass
 
-    # 2) обновляем статус в таблице
-    try:
-        update_user_status(SHEET_NAME, user_id, "отклонено")
-    except Exception:
-        pass
+   
 
     # 2) Переводим пользователя на шаг «пришлите скрин» и сразу просим фото
     dp = Dispatcher.get_current()
