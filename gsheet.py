@@ -28,7 +28,7 @@ def update_user_status(sheet_name, telegram_id, new_status):
     sheet = gc.open(sheet_name).worksheet('users')
     records = sheet.get_all_records()
 
-for idx, row in enumerate(records, start=2):  # с учётом заголовков, начинаем с 2
-    if str(row['telegram_id']) == str(telegram_id):
-        sheet.update_cell(idx, 5, new_status)  # 5-я колонка — статус
-        break
+    for idx, row in enumerate(records, start=2):  # с учётом заголовков, начинаем с 2
+        if str(row['telegram_id']) == str(telegram_id):
+            sheet.update_cell(idx, 5, new_status)  # 5-я колонка — статус
+            break
