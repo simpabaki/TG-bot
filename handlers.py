@@ -41,6 +41,9 @@ async def get_phone(message: types.Message, state: FSMContext):
 
 @router.message(Form.waiting_for_screenshot, F.photo)
 async def get_screenshot(message: types.Message, state: FSMContext):
+    @router.message(Form.waiting_for_screenshot)
+    async def invalid_screenshot_input(message: types.Message):
+        await message.answer("❗ Это не изображение.\nПожалуйста, отправьте скриншот отзыва в виде картинки 📷.")
     user_data = await state.get_data()
     photo_id = message.photo[-1].file_id
     username = message.from_user.username or "не указан"
