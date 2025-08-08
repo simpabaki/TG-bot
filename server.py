@@ -8,4 +8,7 @@ def ping():
     return {"status": "ok"}
 
 def start_api_server():
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
