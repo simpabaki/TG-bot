@@ -100,9 +100,9 @@ async def not_a_screenshot(message: types.Message):
 # ===== Админские колбэки =====
 
 # Клавиатура "Обработано"
-processed_kb = types.InlineKeyboardMarkup(inline_keyboard=[
-    [types.InlineKeyboardButton(text="Обработано", callback_data="processed")]
-])
+processed_kb = types.InlineKeyboardMarkup(
+    inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
+)
 
 @router.callback_query(F.data.startswith("approve_"))
 async def approve_cb(callback: types.CallbackQuery):
@@ -117,7 +117,19 @@ async def approve_cb(callback: types.CallbackQuery):
         )
     except Exception:
         pass
-
+    finally:
+        # в любом случае меняем кнопки у админа на "Обработано"
+        try:
+            await callback.message.edit_reply_markup(reply_markup=processed_kb)
+        except Exception:
+            try:
+                await callback.message.edit_caption(
+                    caption=callback.message.caption or "",
+                    reply_markup=processed_kb
+                )
+            except Exception:
+                pass
+        await callback.answer("Одобрено")
     # 2) обновляем статус в таблице
     try:
         update_user_status(SHEET_NAME, user_id, "одобрено")
@@ -150,27 +162,23 @@ async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # 1) уведомляем пользователя
+    # 1) отправляем пользователю текст отказа (если не получится — пропускаем)
     try:
         await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
     except Exception:
         pass
 
-   
-
-    # 2) Переводим пользователя на шаг «пришлите скрин» и сразу просим фото
+    # 2) ставим пользователю состояние ожидания скрина и просим прислать новое фото
     dp = Dispatcher.get_current()
     key = StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
-    await dp.storage.set_state(key, Form.waiting_for_screenshot)
     try:
+        await dp.storage.set_state(key, Form.waiting_for_screenshot)
         await callback.bot.send_message(chat_id=user_id, text=config['ask_screenshot'])
     except Exception:
+        # даже если отправка пользователю не удалась — кнопки у админа всё равно уберём
         pass
 
-    # 3) Меняем кнопки у админа на «Обработано»
-    processed_kb = types.InlineKeyboardMarkup(
-        inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
-    )
+    # 3) в любом случае меняем кнопки у админа на "Обработано"
     try:
         await callback.message.edit_reply_markup(reply_markup=processed_kb)
     except Exception:
@@ -183,3 +191,9 @@ async def reject_cb(callback: types.CallbackQuery):
             pass
 
     await callback.answer("Отклонено")
+
+
+@router.callback_query(F.data == "processed")
+async def processed_cb(callback: types.CallbackQuery):
+    # "заглушка", чтобы кнопка была неактивной
+    await callback.answer("Уже обработано")
