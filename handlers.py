@@ -66,3 +66,6 @@ async def get_screenshot(message: types.Message, state: FSMContext):
 
     await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
     await message.answer(config['wait_review_text'])
+
+    await message.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=caption, reply_markup=buttons)
+    await message.answer(config['wait_review_text'])
