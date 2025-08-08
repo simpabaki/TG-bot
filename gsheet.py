@@ -24,32 +24,37 @@ def save_user_data(sheet_name, user_id, username, full_name, phone, status):
     sheet = gc.open(sheet_name).worksheet('users')
     sheet.append_row([user_id, username, full_name, phone, status, datetime.datetime.now().isoformat()])
 
-def update_user_status(sheet_name: str, user_id: int, new_status: str) -> bool:
+def update_user_status(sheet_name: str, telegram_id: int, new_status: str) -> bool:
     """
-    Ищет строку пользователя по user_id в листе 'users' и обновляет колонку 'status'.
-    Возвращает True, если получилось, иначе False.
+    Ищет ПОСЛЕДНЮЮ запись с этим telegram_id в листе 'users'
+    и обновляет колонку 'status' на new_status. Возвращает True/False.
     """
     gc = get_gsheet_client()
     ws = gc.open(sheet_name).worksheet('users')
 
-    # Находим индексы колонок по заголовкам
     header = ws.row_values(1)
+
+    # Колонка ID — сначала пробуем 'telegram_id', потом 'user_id', иначе 1-я
     try:
-        user_id_col = header.index('user_id') + 1
+        id_col = header.index('telegram_id') + 1
+    except ValueError:
+        try:
+            id_col = header.index('user_id') + 1
+        except ValueError:
+            id_col = 1
+
+    # Колонка статуса — ищем 'status', иначе по умолчанию 5-я
+    try:
         status_col = header.index('status') + 1
     except ValueError:
-        # Фоллбек: если заголовков нет/другие имена — используем стандартный порядок
-        # user_id, username, full_name, phone, status, timestamp
-        user_id_col = 1
         status_col = 5
 
-    # Ищем строку по user_id в соответствующей колонке
-    col_values = ws.col_values(user_id_col)
+    # Ищем ПОСЛЕДНЮЮ строку с этим ID
+    col_vals = ws.col_values(id_col)
     target_row = None
-    for idx, val in enumerate(col_values, start=1):
-        if str(val).strip() == str(user_id):
-            target_row = idx
-            break
+    for i, v in enumerate(col_vals, start=1):
+        if str(v).strip() == str(telegram_id):
+            target_row = i
 
     if not target_row:
         return False
