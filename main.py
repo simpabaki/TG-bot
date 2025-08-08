@@ -4,11 +4,11 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import SHEET_NAME
 from handlers import router
 from gsheet import get_config
+from server import start_api_server
 
-async def main():
+async def start_bot():
     config = get_config(SHEET_NAME)
     TOKEN = config['bot_token']
-    ADMIN_ID = int(config['admin_id'])
 
     bot = Bot(token=TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
@@ -25,10 +25,11 @@ async def main():
         elif action == "reject":
             await bot.send_message(chat_id=user_id, text=config['reject_text'])
             await callback.message.answer("Пользователь получил отказ.")
-
         await callback.answer()
 
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import threading
+    threading.Thread(target=start_api_server).start()
+    asyncio.run(start_bot())
