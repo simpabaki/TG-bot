@@ -160,23 +160,21 @@ async def reject_cb(callback: types.CallbackQuery):
     config = get_config(SHEET_NAME)
     user_id = int(callback.data.split("_", 1)[1])
 
-    # 1) Сбрасываем/выставляем состояние пользователю на шаг согласия
-    dp = Dispatcher.get_current()
-    key = StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
-    await dp.storage.set_data(key, {})                 # очистим данные шага
-    await dp.storage.set_state(key, Form.consent)      # «начало» вашего сценария
-
+    # 1) Сбрасываем и ставим пользователю шаг согласия (старт)
     try:
-        update_user_status(SHEET_NAME, user_id, "отказано")
-    except Exception:
-        pass
-    # 2) Сообщаем об отказе и сразу показываем стартовый экран, как в /start
+        dp = Dispatcher.get_current()
+        ctx = FSMContext(
+            storage=dp.storage,
+            key=StorageKey(bot_id=callback.bot.id, chat_id=user_id, user_id=user_id)
+        )
+        await ctx.clear()
+        await ctx.set_state(Form.consent)  # через FSMContext — корректно для v3
+    except Exception as e:
+        print("reject_cb FSM error:", e)
+
+    # 2) Шлём «отклонено» + снова стартовый экран
     try:
         await callback.bot.send_message(chat_id=user_id, text=config['reject_text'])
-    except Exception:
-        pass
-
-    try:
         await callback.bot.send_message(
             chat_id=user_id,
             text=config['welcome_text'],
@@ -185,20 +183,23 @@ async def reject_cb(callback: types.CallbackQuery):
                 resize_keyboard=True
             )
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print("reject_cb send_message error:", e)
 
-    # 3) Меняем кнопки у админа на «Обработано»
-    processed_kb = types.InlineKeyboardMarkup(
-        inline_keyboard=[[types.InlineKeyboardButton(text="Обработано", callback_data="processed")]]
-    )
+    # 3) Обновляем статус в таблице
+    try:
+        update_user_status(SHEET_NAME, user_id, "отклонено")
+    except Exception as e:
+        print("reject_cb sheet error:", e)
+
+    # 4) Меняем кнопки у админа на «Обработано»
     try:
         await callback.bot.edit_message_reply_markup(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
             reply_markup=processed_kb
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print("reject_cb markup error:", e)
 
     await callback.answer("Отклонено")
