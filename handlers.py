@@ -16,13 +16,13 @@ async def start(message: types.Message, state: FSMContext):
     await message.answer(
         config['welcome_text'],
         reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
+            keyboard=[[types.KeyboardButton(text="✅ Согласна")]],
             resize_keyboard=True
         )
     )
     await state.set_state(Form.consent)
 
-@router.message(F.text == "✅ Согласен")
+@router.message(F.text == "✅ Согласна")
 async def got_consent(message: types.Message, state: FSMContext):
     config = get_config(SHEET_NAME)
     await message.answer(
@@ -179,7 +179,7 @@ async def reject_cb(callback: types.CallbackQuery):
             chat_id=user_id,
             text=config['welcome_text'],
             reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[types.KeyboardButton(text="✅ Согласен")]],
+                keyboard=[[types.KeyboardButton(text="✅ Согласна")]],
                 resize_keyboard=True
             )
         )
